@@ -1,0 +1,692 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HanoGo Admin Console — MVP Demo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --blue:#1E88E5; --blue-d:#1565C0; --blue-l:#E6F1FB;
+    --err:#D32F2F; --err-l:#FDECEA; --warn:#ED6C02; --warn-l:#FFF4E5;
+    --ok:#2E7D32; --ok-l:#E8F5E9; --hero:#F59E0B; --hero-l:#FEF3E2;
+    --ink:#1A2027; --muted:#5B6570; --hint:#8A93A0;
+    --line:#E3E8EF; --bg:#F4F6F9; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  .hidden{display:none!important}
+
+  /* ---------- Login ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1E88E5 0%,#1565C0 100%);padding:20px}
+  .login-card{width:380px;background:#fff;border-radius:16px;padding:34px 30px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .logo-tile{width:58px;height:58px;border-radius:15px;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px;letter-spacing:.5px}
+  .login-card h1{font-size:20px;margin:14px 0 2px}
+  .login-card p.sub{color:var(--hint);font-size:13px;margin:0}
+  .btn-sso{width:100%;height:46px;background:var(--blue);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px}
+  .btn-sso:hover{background:var(--blue-d)}
+  .divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--hint);font-size:12px}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  label.fld{font-size:13px;color:var(--muted);display:block;margin:0 0 5px}
+  .inp{width:100%;height:40px;border:1px solid var(--line);border-radius:8px;padding:0 12px;margin-bottom:13px}
+  .inp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-l)}
+  .btn-login{width:100%;height:42px;background:#fff;border:1px solid var(--blue);color:var(--blue);border-radius:8px;font-weight:600;font-size:14px}
+  .btn-login:hover{background:var(--blue-l)}
+  .login-note{font-size:11px;color:var(--hint);text-align:center;margin-top:20px;line-height:1.7}
+  .login-err{background:var(--err-l);color:var(--err);font-size:13px;padding:9px 12px;border-radius:8px;margin-bottom:12px}
+
+  /* ---------- Shell ---------- */
+  #app{display:none;min-height:100vh}
+  .topbar{height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:20;gap:14px}
+  .topbar .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+  .brand-tile{width:32px;height:32px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  .top-org{margin-left:6px;padding:5px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+  .bell{position:relative;color:var(--muted);cursor:pointer}
+  .bell .dot{position:absolute;top:-3px;right:-3px;width:15px;height:15px;background:var(--err);color:#fff;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-l);color:var(--blue-d);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .btn-logout{border:1px solid var(--line);background:#fff;border-radius:8px;height:32px;padding:0 12px;font-size:13px;color:var(--muted)}
+  .btn-logout:hover{border-color:var(--err);color:var(--err)}
+
+  .layout{display:flex}
+  .sidebar{width:238px;background:#fff;border-right:1px solid var(--line);height:calc(100vh - 56px);overflow-y:auto;position:sticky;top:56px;flex-shrink:0;padding:10px 0 30px}
+  .grp{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--hint);margin:14px 16px 4px;font-weight:700}
+  .nav{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13.5px;color:var(--muted);cursor:pointer;border-left:3px solid transparent}
+  .nav:hover{background:#F7F9FC}
+  .nav.active{background:var(--blue-l);color:var(--blue-d);border-left-color:var(--blue);font-weight:600}
+  .nav svg{flex-shrink:0}
+  .nav .txt{flex:1}
+  .pri{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:5px;letter-spacing:.3px}
+  .p0{background:var(--err-l);color:var(--err)} .p1{background:var(--warn-l);color:var(--warn)} .p2{background:#EEF0F3;color:var(--hint)}
+
+  .content{flex:1;min-width:0;padding:22px 26px 60px}
+  .page-h{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:16px}
+  .page-h h2{font-size:20px;margin:0}
+  .page-h .desc{color:var(--muted);font-size:13px;margin:3px 0 0}
+
+  .btn{height:38px;padding:0 15px;border-radius:8px;font-size:13.5px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--ink);display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{background:#F7F9FC}
+  .btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn.pri:hover{background:var(--blue-d)}
+  .btn.sm{height:30px;padding:0 11px;font-size:12.5px;font-weight:500}
+  .btn.danger{color:var(--err);border-color:#F3C7C4}
+  .btn.danger:hover{background:var(--err-l)}
+  .btn.ok{color:var(--ok);border-color:#BEE0C1}
+
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .metric .lbl{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .metric .val{font-size:26px;font-weight:700;margin-top:5px}
+  .metric .val.warn{color:var(--warn)} .metric .val.err{color:var(--err)} .metric .val.ok{color:var(--ok)}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .panel h3{font-size:15px;margin:0 0 4px}
+  .panel .sub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+  .row2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+  td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:13.5px}
+  tr:hover td{background:#FAFBFD}
+  .tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+  .t-ok{background:var(--ok-l);color:var(--ok)} .t-warn{background:var(--warn-l);color:var(--warn)}
+  .t-err{background:var(--err-l);color:var(--err)} .t-info{background:var(--blue-l);color:var(--blue-d)}
+  .t-mut{background:#EEF0F3;color:var(--muted)}
+  .ava-sm{width:28px;height:28px;border-radius:50%;background:var(--blue-l);color:var(--blue-d);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;vertical-align:middle;margin-right:8px}
+
+  .task{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+  .task .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .task .m{flex:1;min-width:0}
+  .task .m .t1{font-size:13.5px} .task .m .t2{font-size:11.5px;color:var(--hint);margin-top:2px}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:13px 18px;border-radius:10px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:100;display:flex;align-items:center;gap:9px;max-width:360px;animation:sl .25s ease}
+  @keyframes sl{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .search{position:relative;flex:1;min-width:200px;max-width:340px}
+  .search input{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 12px 0 34px}
+  .search input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-l)}
+  .search svg{position:absolute;left:10px;top:9px;color:var(--hint)}
+  select.filter{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;color:var(--muted);background:#fff}
+
+  .bar-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+  .bar-row .name{width:120px;color:var(--muted)}
+  .bar-track{flex:1;height:16px;background:#EEF2F7;border-radius:6px;overflow:hidden}
+  .bar-fill{height:100%;background:var(--blue);border-radius:6px}
+  .bar-row .pct{width:44px;text-align:right;font-weight:600}
+
+  .day{width:22px;height:22px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;margin-right:3px}
+  .day.on{background:var(--blue-l);color:var(--blue-d);font-weight:600} .day.off{background:#F0F2F5;color:var(--hint)}
+
+  .map-wrap{display:grid;grid-template-columns:1fr 200px;gap:16px}
+  #supLeaflet{height:440px;border-radius:10px;border:1px solid var(--line);z-index:1}
+  .leaflet-popup-content{font-family:inherit;font-size:13px;margin:10px 12px}
+  .leaflet-popup-content b{font-size:13.5px}
+  .pin{width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+  .legend div{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:4px 0}
+  .legend .sw{width:12px;height:12px;border-radius:3px}
+
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .kv:first-child{border-top:none}
+  .switch{width:40px;height:22px;border-radius:20px;background:#CBD2DB;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+  .switch.on{background:var(--blue)}
+  .switch::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s}
+  .switch.on::after{left:20px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+  .form-grid .f label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:5px}
+  .form-grid .f .inp{margin-bottom:0}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;background:#F3F5F8;padding:2px 6px;border-radius:5px}
+  .empty{color:var(--hint);font-size:13px;text-align:center;padding:26px}
+  @media(max-width:820px){.cards{grid-template-columns:repeat(2,1fr)}.row2,.map-wrap,.form-grid{grid-template-columns:1fr}.sidebar{position:fixed;z-index:30;transform:translateX(-100%)}}
+</style>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card">
+    <div class="logo-tile">GO</div>
+    <h1>HanoGo Admin</h1>
+    <p class="sub">Trang quản trị hệ thống bán hàng Hanoimilk</p>
+    <div style="height:22px"></div>
+    <div id="loginErr" class="login-err hidden"></div>
+    <button class="btn-sso" onclick="ssoLogin()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+      Đăng nhập bằng SSO
+    </button>
+    <p style="font-size:11px;color:var(--hint);text-align:center;margin:9px 0 0">Chuyển đến cổng OpenIddict (OAuth2 + PKCE)</p>
+    <div class="divider">hoặc</div>
+    <label class="fld">Tài khoản</label>
+    <input class="inp" id="u" placeholder="admin" value="admin">
+    <label class="fld">Mật khẩu</label>
+    <input class="inp" id="p" type="password" placeholder="admin" value="admin">
+    <button class="btn-login" onclick="doLogin()">Đăng nhập</button>
+    <p class="login-note">Tài khoản demo: <b>admin / admin</b><br>Bản MVP mô phỏng — dữ liệu là giả lập</p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><div class="brand-tile">GO</div> HanoGo Admin</div>
+    <div class="top-org">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
+      Hanoimilk
+    </div>
+    <div class="top-right">
+      <div class="bell"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg><span class="dot">9</span></div>
+      <div class="avatar">AD</div>
+      <span style="font-size:13px;color:var(--muted)">Admin</span>
+      <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+/* =================== MOCK DATA =================== */
+const VN = ["Nguyễn Văn An","Trần Thị Bình","Lê Hữu Cường","Phạm Thị Dung","Hoàng Văn Em","Vũ Thị Giang","Đặng Văn Hải","Bùi Thị Hoa","Đỗ Quang Huy","Ngô Thị Lan","Dương Văn Minh","Lý Thị Nga","Phan Văn Phú","Trịnh Thị Quỳnh","Cao Văn Sơn"];
+let DB = {
+  mdVersion: 128,
+  priceStatus: "Chờ duyệt",
+  employees: VN.map((n,i)=>({id:"NV"+String(i+1).padStart(3,"0"),name:n,role:i%7===0?"GSBH":(i%11===0?"ASM":"NVBH"),type:i%2?"DSR":"DSD",gsbh:i<7?"Đội Cầu Giấy":"Đội Đống Đa",status:i%9===0?"Khóa":"Hoạt động",visit:Math.floor(Math.random()*30),order:Math.floor(Math.random()*40),rev:(Math.random()*30).toFixed(1),ci:["07:18","06:42","07:56","07:23","08:05"][i%5],batt:[67,83,100,41,90,"N/A",76][i%7]})),
+  devices: VN.slice(0,10).map((n,i)=>({user:n,model:["Samsung A54","Xiaomi 13","Oppo A78","iPhone 12","Vivo Y36"][i%5],os:i%3?"Android 14":"iOS 17",status:i===1?"PENDING_SWAP":(i===4?"REVOKED":"ACTIVE"),bind:"2026-0"+((i%6)+1)+"-12",flag:i===7?"root":(i===3?"fake_gps":"")})),
+  outlets: [{code:"KH-0021",name:"Tạp hóa Minh Anh",addr:"12 Cầu Giấy, HN",type:"Tạp hóa",route:"R-CG-01",status:"Chính thức"},{code:"KH-0088",name:"Siêu thị mini Lan",addr:"45 Xuân Thủy, HN",type:"Minimart",route:"R-CG-01",status:"Chính thức"},{code:"KH-1102",name:"Cửa hàng Hùng Béo",addr:"8 Đội Cấn, HN",type:"Tạp hóa",route:"R-BĐ-02",status:"Chính thức"}],
+  pendingOutlets:[{name:"Tạp hóa Cô Ba",addr:"221 Đê La Thành, HN",by:"Nguyễn Văn An",gps:"21.019, 105.821",when:"2 giờ trước"},{name:"Quán Nước Chú Tư",addr:"5 Ngõ 82 Chùa Láng",by:"Lê Hữu Cường",gps:"21.023, 105.800",when:"4 giờ trước"},{name:"Minimart Hải Yến",addr:"90 Nguyễn Chí Thanh",by:"Bùi Thị Hoa",gps:"21.017, 105.808",when:"1 ngày trước"}],
+  routes:[{code:"R-CG-01",name:"Tuyến Cầu Giấy 01",area:"Cầu Giấy",outlets:38,nv:"Nguyễn Văn An"},{code:"R-ĐĐ-03",name:"Tuyến Đống Đa 03",area:"Đống Đa",outlets:42,nv:"Trần Thị Bình"},{code:"R-BĐ-02",name:"Tuyến Ba Đình 02",area:"Ba Đình",outlets:29,nv:"—"}],
+  skus:[{code:"SP-001",name:"Sữa tươi 180ml lốc 4",group:"Sữa tươi",unit:"Lốc",price:"32.000",hero:true},{code:"SP-014",name:"Sữa chua uống 65ml",group:"Sữa chua",unit:"Lốc",price:"28.000",hero:true},{code:"SP-032",name:"Sữa đặc 380g",group:"Sữa đặc",unit:"Hộp",price:"22.000",hero:false},{code:"SP-047",name:"Sữa hạt óc chó 1L",group:"Sữa hạt",unit:"Hộp",price:"41.000",hero:false},{code:"SP-055",name:"Phô mai lát 500g",group:"Phô mai",unit:"Gói",price:"85.000",hero:false}],
+  promotions:[{id:"KM-2026-07",name:"Mua 10 tặng 1 - Sữa tươi",type:"Tặng hàng",cond:"Mua ≥10 lốc SP-001",period:"01/07 – 31/07",status:"Đang chạy"},{id:"KM-2026-06B",name:"Giảm 5% Sữa chua",type:"Giảm %",cond:"Đơn có SP-014",period:"15/06 – 15/07",status:"Đang chạy"},{id:"KM-2026-08",name:"Combo hè - quà tặng",type:"Tặng quà",cond:"Đơn ≥ 2 triệu",period:"01/08 – 31/08",status:"Chờ duyệt"}],
+  vehicles:[{plate:"29H-123.45",type:"Xe tải 1.25 tấn",cap:"1250 kg",nv:"Trần Thị Bình"},{plate:"29K-678.90",type:"Xe tải 500 kg",cap:"500 kg",nv:"Bùi Thị Hoa"},{plate:"29M-334.21",type:"Xe máy thùng",cap:"200 kg",nv:"Phạm Thị Dung"}],
+  vanStock:[{sku:"Sữa tươi 180ml lốc 4",prev:12,add:108,recv:120},{sku:"Sữa chua uống 65ml",prev:0,add:200,recv:200},{sku:"Sữa đặc 380g",prev:8,add:52,recv:54},{sku:"Sữa hạt óc chó 1L",prev:5,add:25,recv:32},{sku:"Phô mai lát 500g",prev:0,add:45,recv:45}],
+  routeChanges:[{route:"R-CG-01",name:"Tuyến Cầu Giấy 01",by:"GSBH Hùng",change:"+2 outlet mới, đổi lịch T3→T5",when:"1 giờ trước"},{route:"R-BĐ-02",name:"Tuyến Ba Đình 02",by:"GSBH Mai",change:"Đổi NVBH: (trống) → Lê Hữu Cường",when:"3 giờ trước"}],
+  orders:[{id:"DSR-8841",nv:"Nguyễn Văn An",outlet:"Tạp hóa Minh Anh",type:"DSR",amt:"1.240.000",status:"Đã duyệt",when:"08:12"},{id:"DSD-8842",nv:"Trần Thị Bình",outlet:"Cửa hàng Hùng Béo",type:"DSD",amt:"860.000",status:"Xung đột tồn",when:"08:40"},{id:"DSR-8843",nv:"Lê Hữu Cường",outlet:"Siêu thị mini Lan",type:"DSR",amt:"2.150.000",status:"Chờ xử lý",when:"09:05"}],
+  anomalies:[{type:"GPS lệch",detail:"Check-in cách outlet 340m (>flag_radius 200m)",nv:"Trần Thị Bình",when:"22 phút trước",sev:"err"},{type:"Root/Jailbreak",detail:"device_rooted = true",nv:"Bùi Thị Hoa",when:"2 giờ trước",sev:"warn"},{type:"Fake GPS",detail:"Phát hiện app vị trí giả",nv:"Phạm Thị Dung",when:"3 giờ trước",sev:"err"},{type:"Xung đột tồn xe",detail:"DSD-8842 lệch sau sync",nv:"Trần Thị Bình",when:"1 giờ trước",sev:"warn"}],
+  versions:[{ver:"1.9.2",policy:"Soft",rollout:"100%",when:"05/07/2026",status:"Hiện hành"},{ver:"1.9.1",policy:"Force",rollout:"100%",when:"20/06/2026",status:"Cũ"},{ver:"2.0.0-beta",policy:"OTA Silent",rollout:"15%",when:"—",status:"Thử nghiệm"}]
+};
+
+/* =================== MENU =================== */
+const MENU = [
+  {grp:"Tổng quan & Giám sát",items:[
+    {id:"dash",ic:"grid",t:"Tổng quan",p:"p0"},
+    {id:"sup",ic:"map",t:"Giám sát realtime",p:"p1"}]},
+  {grp:"Nhân sự",items:[
+    {id:"emp",ic:"users",t:"Quản lý nhân viên",p:"p0"},
+    {id:"org",ic:"tree",t:"Cơ cấu tổ chức",p:"p0"},
+    {id:"att",ic:"clock",t:"Chấm công",p:"p1"},
+    {id:"kpi",ic:"target",t:"KPI / Chỉ tiêu",p:"p1"}]},
+  {grp:"Khách hàng & Tuyến",items:[
+    {id:"outlet",ic:"store",t:"Điểm bán",p:"p0"},
+    {id:"approveOutlet",ic:"check",t:"Duyệt điểm bán",p:"p0"},
+    {id:"routeApprove",ic:"check",t:"Duyệt tuyến",p:"p1"},
+    {id:"route",ic:"route",t:"Quản lý tuyến",p:"p0"},
+    {id:"assign",ic:"pin",t:"Phân tuyến NVBH",p:"p0"}]},
+  {grp:"Phân phối & Kho",items:[
+    {id:"van",ic:"truck",t:"Tồn xe đầu ngày",p:"p0"},
+    {id:"npp",ic:"warehouse",t:"NPP & tồn kho",p:"p0"}]},
+  {grp:"Bán hàng",items:[
+    {id:"orders",ic:"cart",t:"Đơn hàng DSR/DSD",p:"p0"},
+    {id:"debt",ic:"coin",t:"Công nợ / Trả hàng",p:"p1"}]},
+  {grp:"Dữ liệu chính",items:[
+    {id:"sku",ic:"box",t:"SKU & Bảng giá",p:"p0"},
+    {id:"hero",ic:"star",t:"Hero SKU",p:"p0"},
+    {id:"publish",ic:"upload",t:"Publish master data",p:"p0"},
+    {id:"forms",ic:"form",t:"Biểu mẫu (OSA/POSM)",p:"p1"}]},
+  {grp:"Khuyến mãi",items:[
+    {id:"promo",ic:"discount",t:"Promotion Engine",p:"p0"}]},
+  {grp:"Thiết bị & An toàn",items:[
+    {id:"device",ic:"mobile",t:"Device Registry",p:"p0"},
+    {id:"fraud",ic:"shield",t:"Báo cáo gian lận GPS",p:"p1"},
+    {id:"anomaly",ic:"alert",t:"Review anomaly",p:"p1"}]},
+  {grp:"Cấu hình & Vận hành",items:[
+    {id:"config",ic:"sliders",t:"Remote config",p:"p0"},
+    {id:"notify",ic:"bell",t:"Thông báo",p:"p1"},
+    {id:"version",ic:"layers",t:"Phiên bản app",p:"p0"}]},
+  {grp:"Báo cáo & Mở rộng",items:[
+    {id:"report",ic:"chart",t:"Báo cáo",p:"p1"},
+    {id:"integ",ic:"plug",t:"Tích hợp",p:"p2"},
+    {id:"train",ic:"cap",t:"Đào tạo & Thi",p:"p2"}]},
+  {grp:"Hệ thống",items:[
+    {id:"rbac",ic:"lock",t:"Phân quyền & Audit",p:"p0"}]}
+];
+
+/* =================== ICONS =================== */
+const IC = {
+  grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
+  map:'<path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/>',
+  users:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+  tree:'<rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="16" width="6" height="5" rx="1"/><rect x="16" y="16" width="6" height="5" rx="1"/><path d="M12 7v5M5 16v-2h14v2M12 12v2"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  store:'<path d="M3 9l1-5h16l1 5M4 9v11h16V9M3 9h18"/><path d="M9 20v-6h6v6"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  route:'<circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h6a4 4 0 004-4V9"/>',
+  pin:'<path d="M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  truck:'<rect x="1" y="6" width="13" height="10"/><path d="M14 9h4l3 3v4h-7M5.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>',
+  warehouse:'<path d="M3 21V8l9-5 9 5v13"/><path d="M7 21v-8h10v8"/>',
+  cart:'<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 13h11l2-9H6"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2 0 015 0c0 2-2.5 1.5-2.5 3M12 16h.01"/>',
+  box:'<path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/>',
+  star:'<path d="M12 3l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17l-5.6 3.2L8 13.8 3 9.5l6.5-.5z"/>',
+  upload:'<path d="M4 17v3h16v-3M12 3v13M7 8l5-5 5 5"/>',
+  form:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  discount:'<path d="M9 3H4v5l12 12 5-5L9 3z"/><circle cx="7" cy="7" r="1.5"/>',
+  mobile:'<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
+  shield:'<path d="M12 2l8 4v6c0 5-4 8-8 10-4-2-8-5-8-10V6z"/><path d="M15 9l-6 6M9 9l6 6"/>',
+  alert:'<path d="M12 3l10 18H2z"/><path d="M12 9v5M12 18h.01"/>',
+  sliders:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="#fff"/><circle cx="15" cy="12" r="2" fill="#fff"/><circle cx="8" cy="18" r="2" fill="#fff"/>',
+  bell:'<path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/>',
+  layers:'<path d="M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
+  plug:'<path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 01-10 0zM12 16v6"/>',
+  cap:'<path d="M12 3L2 8l10 5 10-5-10-5zM6 11v5c0 1 3 3 6 3s6-2 6-3v-5"/>',
+  lock:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>'
+};
+function icon(n,c="currentColor",s=17){return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC[n]||""}</svg>`}
+
+/* =================== AUTH =================== */
+function ssoLogin(){toast("Đang chuyển đến cổng OpenIddict… (demo: bỏ qua)");setTimeout(enter,600)}
+function doLogin(){
+  const u=document.getElementById("u").value.trim(), p=document.getElementById("p").value.trim();
+  if(u==="admin"&&p==="admin"){enter()}
+  else{const e=document.getElementById("loginErr");e.textContent="Sai tài khoản hoặc mật khẩu. Dùng admin / admin.";e.classList.remove("hidden")}
+}
+function enter(){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";renderSidebar();go("dash")}
+function logout(){document.getElementById("app").style.display="none";document.getElementById("login").style.display="flex";document.getElementById("loginErr").classList.add("hidden")}
+
+/* =================== NAV =================== */
+let active="dash";
+function renderSidebar(){
+  document.getElementById("sidebar").innerHTML = MENU.map(g=>
+    `<div class="grp">${g.grp}</div>`+g.items.map(it=>
+      `<div class="nav ${it.id===active?"active":""}" onclick="go('${it.id}')">
+        ${icon(it.ic)}<span class="txt">${it.t}</span><span class="pri ${it.p}">${it.p.toUpperCase()}</span>
+      </div>`).join("")).join("");
+}
+function go(id){active=id;renderSidebar();const fn=VIEWS[id]||(()=>ph(id));document.getElementById("content").innerHTML=fn();window.scrollTo(0,0)}
+function ph(id){return head("Màn hình","Đang phát triển trong bản MVP")+`<div class="panel"><div class="empty">Chức năng "${id}" — demo</div></div>`}
+
+/* =================== HELPERS =================== */
+function head(t,d,btn=""){return `<div class="page-h"><div><h2>${t}</h2><p class="desc">${d}</p></div><div>${btn}</div></div>`}
+function tag(t,c){return `<span class="tag ${c}">${t}</span>`}
+function ava(n){return `<span class="ava-sm">${n.split(" ").slice(-2).map(x=>x[0]).join("")}</span>`}
+function tbl(cols,rows){return `<div class="panel" style="padding:6px 8px"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`}
+function toolbar(ph="Tìm kiếm",filters=[]){return `<div class="toolbar"><div class="search">${icon("chart",'var(--hint)',15).replace('chart','')}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="${ph}"></div>${filters.map(f=>`<select class="filter"><option>${f}</option></select>`).join("")}</div>`}
+let toastTimer;
+function toast(msg){clearTimeout(toastTimer);let el=document.getElementById("toast");if(el)el.remove();el=document.createElement("div");el.id="toast";el.className="toast";el.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5fd08a" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>${msg}`;document.body.appendChild(el);toastTimer=setTimeout(()=>el.remove(),3200)}
+
+/* =================== VIEWS =================== */
+const VIEWS={};
+
+VIEWS.dash=()=>{
+  const pend=DB.devices.filter(d=>d.status==="PENDING_SWAP").length + DB.pendingOutlets.length;
+  return head("Tổng quan","Bảng điều khiển quản trị — tác vụ cần xử lý và trạng thái hệ thống")+
+  `<div class="cards">
+    <div class="metric"><div class="lbl">${icon("users",'var(--muted)',15)} NVBH hoạt động</div><div class="val">${DB.employees.filter(e=>e.status==="Hoạt động").length}</div></div>
+    <div class="metric"><div class="lbl">${icon("mobile",'var(--muted)',15)} Chờ duyệt</div><div class="val warn">${pend}</div></div>
+    <div class="metric"><div class="lbl">${icon("alert",'var(--muted)',15)} Anomaly chưa xử lý</div><div class="val err">${DB.anomalies.length}</div></div>
+    <div class="metric"><div class="lbl">${icon("discount",'var(--muted)',15)} KM đang chạy</div><div class="val ok">${DB.promotions.filter(p=>p.status==="Đang chạy").length}</div></div>
+  </div>
+  <div class="row2">
+    <div class="panel">
+      <h3>Tác vụ cần xử lý</h3><p class="sub">Gộp từ nhiều module — duyệt, cảnh báo, xung đột</p>
+      ${task("mobile","var(--warn)","var(--warn-l)","Yêu cầu đổi thiết bị — Trần Thị Bình","OTP đã xác thực · 5 phút trước",`<button class="btn pri sm" onclick="go('device')">Duyệt</button>`)}
+      ${task("check","var(--blue)","var(--blue-l)","3 điểm bán mới chờ duyệt","NVBH tạo ngoài thị trường",`<button class="btn sm" onclick="go('approveOutlet')">Xem</button>`)}
+      ${task("pin","var(--err)","var(--err-l)","GPS lệch 340m — check-in outlet","Vượt flag_radius · 22 phút trước",`<button class="btn sm" onclick="go('anomaly')">Xem</button>`)}
+      ${task("truck","var(--err)","var(--err-l)","Xung đột tồn xe DSD-8842","Offline conflict · 1 giờ trước",`<button class="btn sm" onclick="go('van')">Xem</button>`)}
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Trạng thái publish</h3>
+        <div class="kv"><span>Master data</span>${tag("v"+DB.mdVersion,"t-ok")}</div>
+        <div class="kv"><span>Bảng giá</span>${tag(DB.priceStatus,DB.priceStatus==="Đã duyệt"?"t-ok":"t-warn")}</div>
+        <div class="kv"><span>App version</span>${tag("1.9.2 · Soft","t-info")}</div>
+      </div>
+      <div class="panel">
+        <h3>Thao tác nhanh</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button class="btn sm" onclick="go('emp')">${icon("users",'',14)} Tạo user</button>
+          <button class="btn sm" onclick="go('publish')">${icon("upload",'',14)} Publish</button>
+          <button class="btn sm" onclick="go('notify')">${icon("bell",'',14)} Thông báo</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+function task(ic,c,bg,t1,t2,btn){return `<div class="task"><div class="ic" style="background:${bg}">${icon(ic,c,18)}</div><div class="m"><div class="t1">${t1}</div><div class="t2">${t2}</div></div>${btn}</div>`}
+
+let supTimer=null, supMap=null, supMarkers=[];
+const SUP_COLORS={ok:"#2E7D32",err:"#D32F2F",warn:"#ED6C02",blue:"#1E88E5",off:"#9AA3AD"};
+const SUP_STATUS={ok:"Viếng thăm có đơn",err:"Viếng thăm không đơn",warn:"Khách hàng đóng cửa",blue:"Đang di chuyển",off:"Offline"};
+// Rải NVBH quanh các quận Hà Nội thật
+const SUP_CENTERS=[[21.0308,105.7963,"Cầu Giấy"],[21.0170,105.8283,"Đống Đa"],[21.0352,105.8143,"Ba Đình"],[21.0285,105.8520,"Hoàn Kiếm"],[21.0080,105.8480,"Hai Bà Trưng"],[20.9950,105.8050,"Thanh Xuân"]];
+function buildSupAgents(){
+  const arr=[]; const keys=["ok","ok","ok","ok","blue","err","warn","off"];
+  DB.employees.forEach((e,i)=>{
+    const c=SUP_CENTERS[i%SUP_CENTERS.length];
+    arr.push({name:e.name,area:c[2],lat:c[0]+(Math.random()-.5)*0.022,lng:c[1]+(Math.random()-.5)*0.028,st:keys[i%keys.length],visit:e.visit,rev:e.rev});
+  });
+  // thêm vài agent phụ cho dày bản đồ
+  for(let i=0;i<28;i++){const c=SUP_CENTERS[i%SUP_CENTERS.length];arr.push({name:"NVBH "+VN[i%VN.length].split(" ").slice(-1)[0]+" "+(i+16),area:c[2],lat:c[0]+(Math.random()-.5)*0.024,lng:c[1]+(Math.random()-.5)*0.03,st:keys[(i+3)%keys.length],visit:Math.floor(Math.random()*25),rev:(Math.random()*25).toFixed(1)});}
+  return arr;
+}
+function initSupMap(){
+  const el=document.getElementById("supLeaflet"); if(!el) return;
+  if(typeof L==="undefined"){el.innerHTML='<div class="empty" style="padding:60px">Bản đồ cần kết nối mạng để tải OpenStreetMap.<br>Khi lên production, đổi lớp tile sang Google Maps với API key của công ty.</div>';return;}
+  if(supMap){supMap.remove();supMap=null;supMarkers=[];}
+  supMap=L.map(el,{zoomControl:true,attributionControl:true}).setView([21.024,105.83],12);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(supMap);
+  const agents=buildSupAgents();
+  agents.forEach(a=>{
+    const m=L.circleMarker([a.lat,a.lng],{radius:7,color:"#fff",weight:2,fillColor:SUP_COLORS[a.st],fillOpacity:.95});
+    m.bindPopup(`<b>${a.name}</b><br>Khu vực: ${a.area}<br>Trạng thái: ${SUP_STATUS[a.st]}<br>Viếng thăm hôm nay: ${a.visit}<br>Doanh số: ${a.rev} tr`);
+    m.addTo(supMap); m._st=a.st; supMarkers.push(m);
+  });
+}
+VIEWS.sup=()=>{
+  clearInterval(supTimer);
+  supTimer=setInterval(()=>{if(active==="sup")refreshSup();else clearInterval(supTimer)},2500);
+  setTimeout(initSupMap,60);
+  const on=195,off=52;
+  const hours=["8h","9h","10h","11h","12h","13h","14h","15h"];
+  const hv=[120,240,310,180,90,150,280,200];
+  const bars=hours.map((h,i)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1"><div style="width:100%;background:var(--blue-l);border-radius:5px 5px 0 0;display:flex;align-items:flex-end;height:110px"><div style="width:100%;background:var(--blue);border-radius:5px 5px 0 0;height:${hv[i]/3.1}%"></div></div><span style="font-size:11px;color:var(--hint)">${h}</span></div>`).join("");
+  const top=[...DB.employees].sort((a,b)=>b.rev-a.rev).slice(0,5);
+  return head("Giám sát realtime","Điều hành trực tiếp — bản đồ Google/OSM, doanh thu và trạng thái NVBH theo màu",
+    `<select class="filter" style="height:38px"><option>Toàn vùng Hà Nội</option><option>Đội Cầu Giấy</option><option>Đội Đống Đa</option></select>`)+
+  `<div class="cards" id="supMetrics">
+    <div class="metric"><div class="lbl">${icon("coin",'var(--muted)',15)} Doanh thu hôm nay</div><div class="val" id="mRev">312 tr</div></div>
+    <div class="metric"><div class="lbl">${icon("cart",'var(--muted)',15)} Đơn hôm nay</div><div class="val" id="mOrd">1.204</div></div>
+    <div class="metric"><div class="lbl">${icon("pin",'var(--muted)',15)} Viếng thăm</div><div class="val" id="mVis">1.560</div></div>
+    <div class="metric"><div class="lbl">${icon("target",'var(--muted)',15)} Hit rate</div><div class="val ok" id="mHit">77%</div></div>
+  </div>
+  <div class="map-wrap">
+    <div class="panel"><h3>Bản đồ giám sát <span id="supDot" style="color:var(--ok);font-size:12px;font-weight:400">● <span id="supOn">${on}</span> online · <span style="color:var(--err)"><span id="supOff">${off}</span> offline</span></span></h3>
+      <div id="supLeaflet"></div>
+      <p style="font-size:11px;color:var(--hint);margin:10px 0 0">Mỗi điểm là 1 NVBH trên bản đồ Hà Nội · màu theo trạng thái viếng thăm · tự cập nhật 2.5s · bấm điểm để xem chi tiết</p></div>
+    <div>
+      <div class="panel"><h3>Chú giải</h3>
+        <div class="legend">
+          <div><span class="sw" style="background:var(--ok)"></span>Viếng thăm có đơn</div>
+          <div><span class="sw" style="background:var(--err)"></span>Viếng thăm không đơn</div>
+          <div><span class="sw" style="background:var(--warn)"></span>KH đóng cửa</div>
+          <div><span class="sw" style="background:var(--blue)"></span>Đang di chuyển</div>
+          <div><span class="sw" style="background:#9AA3AD"></span>Offline</div>
+        </div></div>
+      <div class="panel"><h3>Top doanh thu</h3>
+        ${top.map((e,i)=>`<div class="kv"><span>${i+1}. ${e.name.split(" ").slice(-2).join(" ")}</span><b>${e.rev} tr</b></div>`).join("")}
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h3>Doanh thu theo giờ (triệu đồng)</h3><p class="sub">Cập nhật realtime trong ngày</p>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:6px">${bars}</div></div>`+
+  tbl(["Nhân viên","Vai trò","Viếng thăm","Đơn","Doanh số (tr)","Check-in","% Pin"],
+    DB.employees.slice(0,10).map(e=>[ava(e.name)+e.name,tag(e.role,"t-info"),e.visit,e.order,e.rev,e.ci,e.batt]));
+};
+function refreshSup(){
+  const rev=document.getElementById("mRev");if(!rev)return;
+  const j=n=>n+Math.floor(Math.random()*7-2);
+  rev.textContent=(312+Math.floor(Math.random()*9))+" tr";
+  document.getElementById("mOrd").textContent=(1204+Math.floor(Math.random()*20)).toLocaleString("vi");
+  document.getElementById("mVis").textContent=(1560+Math.floor(Math.random()*15)).toLocaleString("vi");
+  document.getElementById("mHit").textContent=(76+Math.floor(Math.random()*4))+"%";
+  document.getElementById("supOn").textContent=j(195);
+  // đổi màu vài marker để mô phỏng cập nhật realtime
+  if(supMarkers.length){const keys=["ok","err","warn","blue"];for(let k=0;k<3;k++){const m=supMarkers[Math.floor(Math.random()*supMarkers.length)];const st=keys[Math.floor(Math.random()*keys.length)];m.setStyle({fillColor:SUP_COLORS[st]});}}
+}
+
+VIEWS.emp=()=>head("Quản lý nhân viên","Tạo tài khoản, gán vai trò NVBH/GSBH/ASM — tiền điều kiện đăng nhập app (UC-01)",`<button class="btn pri" onclick="toast('Mở form tạo nhân viên (demo)')">${icon("users",'#fff',15)} Tạo nhân viên</button>`)+
+  toolbar("Tìm nhân viên",["Tất cả vai trò","Tất cả đội"])+
+  tbl(["Mã","Nhân viên","Vai trò","Loại","Đội (GSBH)","Trạng thái","Thao tác"],
+    DB.employees.map(e=>[`<span class="mono">${e.id}</span>`,ava(e.name)+e.name,tag(e.role,"t-info"),e.type,e.gsbh,tag(e.status,e.status==="Hoạt động"?"t-ok":"t-mut"),`<button class="btn sm" onclick="toast('Sửa ${e.name}')">Sửa</button>`]));
+
+VIEWS.org=()=>head("Cơ cấu tổ chức","Cây phân cấp NVBH ↔ GSBH ↔ ASM theo khu vực")+
+  `<div class="panel">
+    <div style="font-weight:600;margin-bottom:8px">${icon("tree",'var(--blue)',16)} ASM — Vùng Hà Nội</div>
+    <div style="margin-left:20px">
+      <div style="padding:6px 0">↳ ${icon("users",'var(--muted)',14)} GSBH: Đội Cầu Giấy <span class="tag t-mut">7 NVBH</span></div>
+      <div style="margin-left:24px;color:var(--muted);font-size:13px;padding:2px 0">• Nguyễn Văn An (DSR) · Trần Thị Bình (DSD) · Lê Hữu Cường (DSR) …</div>
+      <div style="padding:6px 0">↳ ${icon("users",'var(--muted)',14)} GSBH: Đội Đống Đa <span class="tag t-mut">8 NVBH</span></div>
+      <div style="margin-left:24px;color:var(--muted);font-size:13px;padding:2px 0">• Đặng Văn Hải (DSR) · Bùi Thị Hoa (DSD) · Đỗ Quang Huy (DSR) …</div>
+    </div>
+  </div>`;
+
+VIEWS.att=()=>head("Chấm công","Bảng chấm công kèm vị trí (check-in/check-out từ app mobile)")+
+  toolbar("Tìm nhân viên",["Tháng 07/2026"])+
+  tbl(["Nhân viên","Check-in","Vị trí vào","Check-out","Công","Trạng thái"],
+    DB.employees.slice(0,8).map((e,i)=>[ava(e.name)+e.name,e.ci,"21.02, 105.8"+i,i%4===3?"—":"17:4"+i,i%4===3?"0.5":"1.0",i%4===3?tag("Chưa checkout","t-warn"):tag("Đủ công","t-ok")]));
+
+VIEWS.kpi=()=>{
+  const rows=DB.employees.slice(0,6).map(e=>{const pct=Math.min(100,e.visit*4);return `<div class="bar-row"><span class="name">${e.name.split(" ").slice(-2).join(" ")}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span class="pct">${pct}%</span></div>`}).join("");
+  return head("KPI / Chỉ tiêu","Đặt và theo dõi chỉ tiêu viếng thăm & doanh số theo NV / kỳ",`<button class="btn pri" onclick="toast('Đặt chỉ tiêu quý (demo)')">${icon("target",'#fff',15)} Đặt chỉ tiêu</button>`)+
+  `<div class="cards"><div class="metric"><div class="lbl">Đạt KPI tháng</div><div class="val ok">68%</div></div><div class="metric"><div class="lbl">Tổng doanh số (tr)</div><div class="val">1.842</div></div><div class="metric"><div class="lbl">Viếng thăm/kế hoạch</div><div class="val">1.204 / 1.560</div></div><div class="metric"><div class="lbl">SKU coverage TB</div><div class="val">4.2</div></div></div>
+  <div class="panel"><h3>Tiến độ viếng thăm theo NVBH</h3><p class="sub">Thực hiện / kế hoạch tháng</p>${rows}</div>`;
+};
+
+VIEWS.outlet=()=>head("Điểm bán (Outlet)","Danh mục điểm bán chính thức",`<button class="btn pri" onclick="toast('Thêm điểm bán (demo)')">+ Thêm điểm bán</button>`)+
+  toolbar("Tìm điểm bán",["Tất cả tuyến","Tất cả loại"])+
+  tbl(["Mã","Tên","Địa chỉ","Loại","Tuyến","Trạng thái"],
+    DB.outlets.map(o=>[`<span class="mono">${o.code}</span>`,o.name,o.addr,o.type,o.route,tag(o.status,"t-ok")]));
+
+VIEWS.approveOutlet=()=>head("Duyệt điểm bán mới","Điểm bán do NVBH tạo ngoài thị trường — duyệt để thành khách hàng chính thức (Slide 13)")+
+  (DB.pendingOutlets.length?DB.pendingOutlets.map((o,i)=>
+    `<div class="panel" style="display:flex;align-items:center;gap:14px">
+      <div class="ic task" style="background:var(--blue-l);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0">${icon("store",'var(--blue)',20)}</div>
+      <div style="flex:1"><div style="font-weight:600">${o.name}</div><div style="color:var(--hint);font-size:12.5px;margin-top:2px">${o.addr} · GPS ${o.gps} · tạo bởi ${o.by} · ${o.when}</div></div>
+      <button class="btn ok" onclick="approveOutlet(${i})">${icon("check",'var(--ok)',15)} Duyệt</button>
+      <button class="btn danger" onclick="rejectOutlet(${i})">Từ chối</button>
+    </div>`).join(""):`<div class="panel"><div class="empty">Không còn điểm bán chờ duyệt ✓</div></div>`);
+function approveOutlet(i){const o=DB.pendingOutlets[i];DB.outlets.push({code:"KH-"+Math.floor(Math.random()*9000+1000),name:o.name,addr:o.addr,type:"Tạp hóa",route:"Chưa gán",status:"Chính thức"});DB.pendingOutlets.splice(i,1);toast('Đã duyệt "'+o.name+'" → khách hàng chính thức');go("approveOutlet")}
+function rejectOutlet(i){const o=DB.pendingOutlets[i];DB.pendingOutlets.splice(i,1);toast('Đã từ chối "'+o.name+'"');go("approveOutlet")}
+
+VIEWS.route=()=>head("Quản lý tuyến","Tạo và quản lý tuyến bán hàng (UC-19)",`<button class="btn pri" onclick="toast('Tạo tuyến (demo)')">+ Tạo tuyến</button>`)+
+  tbl(["Mã tuyến","Tên","Khu vực","Số outlet","NVBH phụ trách"],
+    DB.routes.map(r=>[`<span class="mono">${r.code}</span>`,r.name,r.area,r.outlets,r.nv==="—"?tag("Chưa gán","t-warn"):r.nv]));
+
+VIEWS.assign=()=>{
+  const days=["T2","T3","T4","T5","T6"];
+  const rows=DB.employees.slice(0,5).map((e,i)=>{
+    const sched=days.map((d,j)=>`<span class="day ${(i+j)%2?"on":"off"}">${d}</span>`).join("");
+    const r=i<3?DB.routes[i%3].code:null;
+    return [ava(e.name)+e.name.split(" ").slice(-2).join(" "),r?`<span class="mono">${r}</span>`:tag("Chưa gán","t-warn"),r?sched:"—",r?[38,42,29][i%3]:0,r?`<button class="btn sm" onclick="toast('Sửa tuyến')">Sửa</button>`:`<button class="btn pri sm" onclick="toast('Gán tuyến')">Gán</button>`];
+  });
+  return head("Phân tuyến cho NVBH","Gán tuyến và lịch ghé theo ngày — sửa sẽ đẩy NTF-09 để app đồng bộ")+
+  tbl(["NVBH","Tuyến","Lịch ghé","Outlet","Thao tác"],rows);
+};
+
+VIEWS.van=()=>{
+  const rows=DB.vanStock.map(v=>{
+    const bod=v.prev+v.add;               // tồn đầu ngày = tồn cuối hôm qua + giao thêm
+    const d=v.recv-bod;                    // lệch = thực nhận - tồn đầu ngày
+    const c=d===0?"":(d<0?"t-err":"t-warn");
+    const chk=d===0?`<span style="color:var(--ok)">${icon("check",'var(--ok)',16)}</span>`:`<span style="color:${d<0?'var(--err)':'var(--warn)'}">${icon("alert",d<0?'var(--err)':'var(--warn)',15)}</span>`;
+    const prevCell=v.prev>0?`<b style="color:var(--warn)">${v.prev}</b>`:v.prev;
+    return [v.sku,prevCell,v.add,`<b>${bod}</b>`,v.recv,d===0?"0":tag((d>0?"+":"")+d,c),chk];
+  });
+  const diff=DB.vanStock.filter(v=>v.recv!==(v.prev+v.add)).length;
+  const carry=DB.vanStock.filter(v=>v.prev>0).length;
+  return head("Giao tồn xe đầu ngày","Tạo phiếu giao xe cho NVBH DSD — tồn đầu ngày = tồn cuối hôm qua + giao thêm (BR-0503)")+
+  `<div class="panel"><h3>Thông tin phiếu giao</h3>
+    <div class="form-grid" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr">
+      <div class="f"><label>NVBH (DSD)</label><select class="inp" onchange="toast('Đã chọn: '+this.value)">${DB.employees.filter(e=>e.type==="DSD").slice(0,5).map(e=>`<option>${e.name}</option>`).join("")}</select></div>
+      <div class="f"><label>Xe giao hàng</label><select class="inp">${DB.vehicles.map(v=>`<option>${v.plate} — ${v.type}</option>`).join("")}</select></div>
+      <div class="f"><label>NPP / kho xuất</label><select class="inp"><option>NPP Đống Đa</option><option>NPP Cầu Giấy</option></select></div>
+      <div class="f"><label>Ngày giao</label><input class="inp" value="08/07/2026"></div>
+      <div class="f"><label>Phiếu xuất NPP</label><input class="inp" value="#PX-2207-08"></div>
+      <div class="f"><label>Tuyến</label><input class="inp" value="R-ĐĐ-03" readonly></div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="metric"><div class="lbl">SKU giao</div><div class="val">${DB.vanStock.length}</div></div>
+    <div class="metric"><div class="lbl">Tồn chuyển từ hôm qua</div><div class="val warn">${carry} SKU</div></div>
+    <div class="metric"><div class="lbl">Lệch thực nhận</div><div class="val err">${diff} SKU</div></div>
+    <div class="metric"><div class="lbl">Trạng thái</div><div class="val" style="font-size:16px;color:var(--warn)">Chờ NVBH xác nhận</div></div>
+  </div>`+
+  tbl(["SKU","Tồn cuối hôm qua","+ Giao thêm","= Tồn đầu ngày","NVBH thực nhận","Lệch",""],rows)+
+  `<div class="panel" style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--muted);font-size:12.5px;max-width:52%">Tồn cuối hôm qua tự lấy từ đối soát EOD của NVBH (UC-07). Số này ≠ 0 nghĩa là hàng còn trên xe. Chốt phiếu sẽ khóa baseline tồn đầu ngày hôm nay.</span><div style="display:flex;gap:8px"><button class="btn" onclick="toast('So sánh chi tiết tồn 7 ngày (demo)')">So sánh 7 ngày</button><button class="btn" onclick="toast('Mở form ghi chú lệch')">Ghi chú lệch</button><button class="btn pri" onclick="toast('Đã chốt phiếu giao — khóa baseline tồn đầu ngày ✓')">Chốt phiếu giao</button></div></div>`;
+};
+
+VIEWS.routeApprove=()=>head("Duyệt tuyến","ASM duyệt thay đổi tuyến do GSBH đề xuất trước khi publish xuống app (NTF-09)")+
+  (DB.routeChanges.length?DB.routeChanges.map((r,i)=>
+    `<div class="panel" style="display:flex;align-items:center;gap:14px">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon("route",'var(--blue)',20)}</div>
+      <div style="flex:1"><div style="font-weight:600">${r.name} <span class="mono">${r.route}</span></div><div style="color:var(--hint);font-size:12.5px;margin-top:2px">Thay đổi: ${r.change} · đề xuất bởi ${r.by} · ${r.when}</div></div>
+      <button class="btn ok" onclick="approveRoute(${i})">${icon("check",'var(--ok)',15)} Duyệt & publish</button>
+      <button class="btn danger" onclick="rejectRoute(${i})">Từ chối</button>
+    </div>`).join(""):`<div class="panel"><div class="empty">Không còn thay đổi tuyến chờ duyệt ✓</div></div>`);
+function approveRoute(i){const r=DB.routeChanges[i];DB.routeChanges.splice(i,1);toast('Đã duyệt "'+r.name+'" — đẩy NTF-09 để app đồng bộ');go("routeApprove")}
+function rejectRoute(i){const r=DB.routeChanges[i];DB.routeChanges.splice(i,1);toast('Đã từ chối thay đổi "'+r.name+'"');go("routeApprove")}
+
+
+VIEWS.npp=()=>head("NPP & tồn kho","Nhà phân phối và tồn kho near-real-time (BR-0907)")+
+  tbl(["Mã NPP","Tên NPP","Khu vực","Tồn kho (SKU)","Cập nhật"],
+    [["NPP-01","NPP Cầu Giấy","Hà Nội","124 SKU","5 phút trước"],["NPP-02","NPP Đống Đa","Hà Nội","118 SKU","12 phút trước"],["NPP-03","NPP Ba Đình","Hà Nội","96 SKU","1 giờ trước"]].map(r=>[`<span class="mono">${r[0]}</span>`,r[1],r[2],r[3],r[4]]));
+
+VIEWS.orders=()=>head("Đơn hàng DSR/DSD","Giám sát đơn hàng theo NVBH / tuyến / thời gian")+
+  toolbar("Tìm đơn",["Tất cả loại","Mọi trạng thái"])+
+  tbl(["Mã đơn","NVBH","Điểm bán","Loại","Giá trị","Trạng thái","Giờ"],
+    DB.orders.map(o=>[`<span class="mono">${o.id}</span>`,o.nv,o.outlet,tag(o.type,"t-info"),o.amt+"đ",tag(o.status,o.status==="Đã duyệt"?"t-ok":(o.status==="Xung đột tồn"?"t-err":"t-warn")),o.when]));
+
+VIEWS.debt=()=>head("Công nợ / Trả hàng","Theo dõi công nợ điểm bán (DSD) và phiếu trả hàng")+
+  tbl(["Điểm bán","Công nợ hiện tại","Hạn mức","Quá hạn","Trả hàng tháng"],
+    [["Tạp hóa Minh Anh","2.400.000đ","5.000.000đ",tag("Trong hạn","t-ok"),"0"],["Cửa hàng Hùng Béo","4.850.000đ","5.000.000đ",tag("Gần hạn mức","t-warn"),"1 phiếu"],["Siêu thị mini Lan","6.200.000đ","5.000.000đ",tag("Vượt hạn mức","t-err"),"0"]].map(r=>r));
+
+VIEWS.sku=()=>head("SKU & Bảng giá","Danh mục sản phẩm và bảng giá theo loại KH — "+tag(DB.priceStatus,DB.priceStatus==="Đã duyệt"?"t-ok":"t-warn"),
+  DB.priceStatus!=="Đã duyệt"?`<button class="btn pri" onclick="approvePrice()">${icon("check",'#fff',15)} Duyệt bảng giá</button>`:`<button class="btn" disabled>Bảng giá đã duyệt</button>`)+
+  toolbar("Tìm SKU",["Tất cả nhóm"])+
+  tbl(["Mã","Tên sản phẩm","Nhóm","ĐVT","Giá","Hero"],
+    DB.skus.map(s=>[`<span class="mono">${s.code}</span>`,s.name,s.group,s.unit,s.price+"đ",s.hero?tag("Hero","t-warn"):"—"]));
+function approvePrice(){DB.priceStatus="Đã duyệt";toast("Đã duyệt bảng giá — sẵn sàng publish");go("sku")}
+
+VIEWS.hero=()=>head("Hero SKU","Cờ is_hero_sku do Trade Marketing cấu hình — hiển thị ưu tiên trên app, đổi theo mùa/chiến dịch")+
+  `<div class="panel" style="padding:6px 8px"><table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Nhóm</th><th>Hero rank</th><th style="text-align:right">Hero SKU</th></tr></thead><tbody>${DB.skus.map((s,i)=>`<tr><td><span class="mono">${s.code}</span></td><td>${s.name}</td><td>${s.group}</td><td>${s.hero?(i+1):"—"}</td><td style="text-align:right"><span class="switch ${s.hero?"on":""}" onclick="toggleHero(${i})"></span></td></tr>`).join("")}</tbody></table></div>`;
+function toggleHero(i){DB.skus[i].hero=!DB.skus[i].hero;toast(DB.skus[i].name+(DB.skus[i].hero?" → đánh dấu Hero":" → bỏ Hero"));go("hero")}
+
+VIEWS.publish=()=>head("Publish master data","Đẩy SKU, giá, tuyến, Hero, KM lên ODS và thông báo app đồng bộ (NTF-09)")+
+  `<div class="row2">
+    <div class="panel"><h3>Phiên bản hiện tại</h3>
+      <div class="kv"><span>Master data version</span><span class="mono">v${DB.mdVersion}</span></div>
+      <div class="kv"><span>Bảng giá</span>${tag(DB.priceStatus,DB.priceStatus==="Đã duyệt"?"t-ok":"t-warn")}</div>
+      <div class="kv"><span>SKU / Hero</span>${tag(DB.skus.length+" SKU · "+DB.skus.filter(s=>s.hero).length+" Hero","t-info")}</div>
+      <div class="kv"><span>Khuyến mãi active</span>${tag(DB.promotions.filter(p=>p.status==="Đang chạy").length+" KM","t-info")}</div>
+      <div style="margin-top:14px"><button class="btn pri" onclick="publishMD()" ${DB.priceStatus!=="Đã duyệt"?"":""}>${icon("upload",'#fff',15)} Publish v${DB.mdVersion+1} & đẩy NTF-09</button></div>
+      ${DB.priceStatus!=="Đã duyệt"?`<p style="color:var(--warn);font-size:12.5px;margin-top:9px">⚠ Bảng giá chưa duyệt — nên duyệt trước khi publish (menu SKU & Bảng giá)</p>`:""}
+    </div>
+    <div class="panel"><h3>Cơ chế đồng bộ</h3><p class="sub" style="line-height:1.7">App mobile offline-first (Drift). Sau publish, server tăng version và đẩy <span class="mono">NTF-09</span>. App so version, pull delta qua sync queue (UUIDv7 idempotency), cập nhật local store.</p></div>
+  </div>`;
+function publishMD(){DB.mdVersion++;toast("Đã publish master data v"+DB.mdVersion+" — đẩy NTF-09 đến 247 thiết bị");go("publish")}
+
+VIEWS.forms=()=>head("Biểu mẫu (OSA / POSM / Khảo sát)","Form builder động cho báo cáo trưng bày (UC-10/12)",`<button class="btn pri" onclick="toast('Tạo biểu mẫu (demo)')">+ Tạo biểu mẫu</button>`)+
+  tbl(["Mã form","Tên","Loại","Số trường","Áp dụng","Trạng thái"],
+    [["FRM-OSA-01","Kiểm tra sẵn có sản phẩm","OSA",8,"Toàn quốc",tag("Đang dùng","t-ok")],["FRM-POSM-02","Chụp trưng bày quầy kệ","POSM",5,"Minimart",tag("Đang dùng","t-ok")],["FRM-SUR-03","Khảo sát đối thủ","Khảo sát",12,"Chiến dịch hè",tag("Nháp","t-mut")]].map(r=>r));
+
+VIEWS.promo=()=>head("Promotion Engine","Tạo, duyệt và publish chương trình khuyến mãi — app chỉ preview + confirm, không override (UC-04/05)",`<button class="btn pri" onclick="newPromo()">${icon("discount",'#fff',15)} Tạo khuyến mãi</button>`)+
+  tbl(["Mã KM","Tên","Loại","Điều kiện","Hiệu lực","Trạng thái"],
+    DB.promotions.map((p,i)=>[`<span class="mono">${p.id}</span>`,p.name,tag(p.type,"t-info"),p.cond,p.period,p.status==="Đang chạy"?tag(p.status,"t-ok"):`<span class="tag t-warn">${p.status}</span> <button class="btn sm ok" style="margin-left:6px" onclick="approvePromo(${i})">Duyệt</button>`]));
+function newPromo(){const n=prompt("Tên chương trình khuyến mãi:","Giảm 10% cuối tuần");if(!n)return;DB.promotions.unshift({id:"KM-2026-"+String(Math.floor(Math.random()*90+10)),name:n,type:"Giảm %",cond:"Đơn bất kỳ",period:"Tùy chỉnh",status:"Chờ duyệt"});toast('Đã tạo "'+n+'" (chờ duyệt)');go("promo")}
+function approvePromo(i){DB.promotions[i].status="Đang chạy";toast('Đã duyệt & publish "'+DB.promotions[i].name+'"');go("promo")}
+
+VIEWS.device=()=>head("Device Registry","Quản lý binding thiết bị, duyệt đổi thiết bị (OTP), thu hồi (UC-01/06)")+
+  tbl(["Người dùng","Thiết bị","OS","Binding","Cờ","Trạng thái","Thao tác"],
+    DB.devices.map((d,i)=>{
+      let act="";
+      if(d.status==="PENDING_SWAP")act=`<button class="btn ok sm" onclick="deviceAct(${i},'approve')">Duyệt</button>`;
+      else if(d.status==="ACTIVE")act=`<button class="btn danger sm" onclick="deviceAct(${i},'revoke')">Revoke</button>`;
+      else act=`<button class="btn sm" disabled>—</button>`;
+      const st=d.status==="ACTIVE"?tag("ACTIVE","t-ok"):(d.status==="PENDING_SWAP"?tag("PENDING_SWAP","t-warn"):tag("REVOKED","t-mut"));
+      const fl=d.flag==="root"?tag("root","t-warn"):(d.flag==="fake_gps"?tag("fake GPS","t-err"):"—");
+      return [ava(d.user)+d.user,d.model,d.os,d.bind,fl,st,act];
+    }));
+function deviceAct(i,a){const d=DB.devices[i];if(a==="approve"){d.status="ACTIVE";toast("Đã duyệt đổi thiết bị cho "+d.user)}else{d.status="REVOKED";toast("Đã revoke thiết bị của "+d.user+" — đẩy forced-logout")}go("device")}
+
+VIEWS.fraud=()=>head("Báo cáo gian lận GPS","NV dùng fake GPS / root / jailbreak — flag-and-warn, không hard block")+
+  tbl(["Nhân viên","Loại cờ","Chi tiết","Thiết bị","Thời gian"],
+    [["Phạm Thị Dung",tag("fake GPS","t-err"),"anomaly_flags_json: gps_mock","Vivo Y36","3 giờ trước"],["Bùi Thị Hoa",tag("root","t-warn"),"device_rooted = true","Oppo A78","2 giờ trước"],["Đỗ Quang Huy",tag("frida","t-warn"),"device_frida detected","Xiaomi 13","hôm qua"]].map(r=>r));
+
+VIEWS.anomaly=()=>head("Review anomaly","Xử lý cảnh báo GPS lệch, xung đột offline, tồn xe (BR-0111)")+
+  DB.anomalies.map((a,i)=>`<div class="panel" style="display:flex;align-items:center;gap:14px">
+    <div style="width:38px;height:38px;border-radius:9px;background:${a.sev==="err"?"var(--err-l)":"var(--warn-l)"};display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon("alert",a.sev==="err"?"var(--err)":"var(--warn)",19)}</div>
+    <div style="flex:1"><div style="font-weight:600">${a.type} — ${a.nv}</div><div style="color:var(--hint);font-size:12.5px;margin-top:2px">${a.detail} · ${a.when}</div></div>
+    <button class="btn ok" onclick="resolveAnom(${i})">Đã xử lý</button>
+  </div>`).join("");
+function resolveAnom(i){const a=DB.anomalies[i];DB.anomalies.splice(i,1);toast("Đã đánh dấu xử lý: "+a.type);go(DB.anomalies.length?"anomaly":"dash")}
+
+VIEWS.config=()=>head("Remote config","Tham số vận hành app — GPS, giờ làm việc, lịch nhắc (BR-0309/0204/0601)",`<button class="btn pri" onclick="toast('Đã lưu cấu hình — đẩy Remote Config')">Lưu cấu hình</button>`)+
+  `<div class="panel"><h3>Ngưỡng GPS</h3><div class="form-grid" style="margin-top:10px">
+    <div class="f"><label>warning_radius_m</label><input class="inp" value="50"></div>
+    <div class="f"><label>flag_radius_m</label><input class="inp" value="200"></div>
+  </div></div>
+  <div class="panel"><h3>Giờ làm việc</h3><div class="form-grid" style="margin-top:10px">
+    <div class="f"><label>SOD mở phiên từ</label><input class="inp" value="05:00"></div>
+    <div class="f"><label>Auto-close phiên</label><input class="inp" value="22:00"></div>
+  </div></div>
+  <div class="panel"><h3>Lịch nhắc việc NVBH</h3><div class="form-grid" style="margin-top:10px">
+    <div class="f"><label>Nhắc check-in sáng</label><input class="inp" value="07:30"></div>
+    <div class="f"><label>Nhắc giữa ngày</label><input class="inp" value="16:00"></div>
+    <div class="f"><label>Nhắc cuối ngày 1</label><input class="inp" value="18:30"></div>
+    <div class="f"><label>Nhắc EOD</label><input class="inp" value="19:00"></div>
+  </div></div>`;
+
+VIEWS.notify=()=>head("Thông báo","Gửi broadcast/targeted và cấu hình notification rules")+
+  `<div class="row2">
+    <div class="panel"><h3>Gửi thông báo</h3>
+      <div class="f" style="margin:10px 0"><label class="fld">Đối tượng</label><select class="inp"><option>Tất cả NVBH</option><option>Theo đội GSBH</option><option>Theo khu vực</option></select></div>
+      <div class="f"><label class="fld">Nội dung</label><textarea class="inp" style="height:80px;padding:9px 12px" placeholder="Nhập nội dung thông báo…"></textarea></div>
+      <button class="btn pri" style="margin-top:10px" onclick="toast('Đã gửi thông báo đến 247 thiết bị')">${icon("bell",'#fff',15)} Gửi thông báo</button>
+    </div>
+    <div class="panel"><h3>Notification rules</h3>
+      <div class="kv"><span>Nhắc check-in</span>${tag("Bật","t-ok")}</div>
+      <div class="kv"><span>Cảnh báo GPS lệch</span>${tag("Bật","t-ok")}</div>
+      <div class="kv"><span>Nhắc EOD chưa đối soát</span>${tag("Bật","t-ok")}</div>
+      <div class="kv"><span>Batching window</span><span class="mono">15 phút</span></div>
+    </div>
+  </div>`;
+
+VIEWS.version=()=>head("Phiên bản app","Publish version, chính sách cập nhật Force/Soft/OTA, staged rollout (UC-18)",`<button class="btn pri" onclick="toast('Publish version mới (demo)')">${icon("layers",'#fff',15)} Publish version</button>`)+
+  tbl(["Version","Chính sách","Rollout","Ngày","Trạng thái"],
+    DB.versions.map(v=>[`<span class="mono">${v.ver}</span>`,tag(v.policy,v.policy==="Force"?"t-err":(v.policy==="Soft"?"t-warn":"t-info")),v.rollout,v.when,v.status==="Hiện hành"?tag(v.status,"t-ok"):tag(v.status,"t-mut")]));
+
+VIEWS.report=()=>{
+  const bars=[["Doanh số",82],["Đơn đặt",74],["Độ phủ SKU",63],["Viếng thăm",91]].map(b=>`<div class="bar-row"><span class="name">${b[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${b[1]}%"></div></div><span class="pct">${b[1]}%</span></div>`).join("");
+  return head("Báo cáo","Trung tâm báo cáo — bán hàng, KPI, đi tuyến, hình ảnh, coverage")+
+  `<div class="cards">
+    <div class="metric"><div class="lbl">Doanh số tháng (tr)</div><div class="val">1.842</div></div>
+    <div class="metric"><div class="lbl">Đơn hàng</div><div class="val">3.204</div></div>
+    <div class="metric"><div class="lbl">Độ phủ SKU</div><div class="val ok">63%</div></div>
+    <div class="metric"><div class="lbl">Tỷ lệ viếng thăm</div><div class="val">91%</div></div>
+  </div>
+  <div class="row2">
+    <div class="panel"><h3>Chỉ số tổng hợp tháng 07</h3><p class="sub">So với kế hoạch</p>${bars}</div>
+    <div class="panel"><h3>Nhóm báo cáo</h3>
+      <div class="kv"><span>Báo cáo đặt hàng</span>${tag("P0","t-err")}</div>
+      <div class="kv"><span>KPI / KPI Sellin</span>${tag("P1","t-warn")}</div>
+      <div class="kv"><span>Kết quả đi tuyến</span>${tag("P1","t-warn")}</div>
+      <div class="kv"><span>Thống kê hình ảnh</span>${tag("P1","t-warn")}</div>
+      <div class="kv"><span>Thị phần & độ phủ</span>${tag("P1","t-warn")}</div>
+    </div>
+  </div>`;
+};
+
+VIEWS.integ=()=>head("Tích hợp","Kết nối hệ thống ngoài")+
+  `<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+    ${integCard("Zoho CRM / ODS","Nguồn master data & khuyến mãi","Đã kết nối","t-ok")}
+    ${integCard("Hóa đơn điện tử","Xuất HĐĐT theo quy định VN","Chưa cấu hình","t-mut")}
+    ${integCard("Firebase Remote Config","Tham số vận hành động","Đã kết nối","t-ok")}
+    ${integCard("ZNS / Zalo","Kênh thông báo bổ sung","Chưa cấu hình","t-mut")}
+    ${integCard("Shorebird","OTA patch & rollback","Đã kết nối","t-ok")}
+    ${integCard("OpenIddict SSO","Xác thực OAuth2 + PKCE","Đã kết nối","t-ok")}
+  </div>`;
+function integCard(t,d,s,c){return `<div class="metric"><div style="font-weight:600;margin-bottom:4px">${t}</div><div style="color:var(--hint);font-size:12px;line-height:1.5;min-height:32px">${d}</div><div style="margin-top:8px">${tag(s,c)}</div></div>`}
+
+VIEWS.train=()=>head("Đào tạo & Thi (P2)","Module học tập cho NVBH — ngân hàng câu hỏi, giao đề, chấm điểm")+
+  tbl(["Đề thi","Số câu","Áp dụng","Đã làm","Điểm TB"],
+    [["Kiến thức sản phẩm sữa",20,"NVBH mới","32/45",tag("7.8","t-ok")],["Quy trình viếng thăm",15,"Toàn bộ","118/247",tag("8.4","t-ok")],["Xử lý phản hồi KH",10,"DSD","0/98",tag("Chưa mở","t-mut")]].map(r=>r));
+
+VIEWS.rbac=()=>head("Phân quyền & Audit","Ma trận quyền admin nội bộ và nhật ký thao tác")+
+  `<div class="panel"><h3>Ma trận phân quyền</h3><table style="margin-top:8px"><thead><tr><th>Module</th><th>Super Admin</th><th>ASM</th><th>GSBH</th><th>Trade Mkt</th><th>Kế toán</th></tr></thead><tbody>
+  ${[["Nhân sự / phân quyền","✔","vùng","nhóm","—","—"],["Thiết bị","✔","✔","xem","—","—"],["Duyệt outlet / tuyến","✔","vùng","nhóm","—","—"],["SKU / giá / Hero / KM","✔","—","—","✔","—"],["Tồn xe / NPP","✔","xem","xem","—","✔"],["Remote config / version","✔","—","—","—","—"]].map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(c=>`<td style="color:${c==='✔'?'var(--ok)':(c==='—'?'var(--hint)':'var(--muted)')}">${c}</td>`).join("")}</tr>`).join("")}
+  </tbody></table></div>
+  <div class="panel"><h3>Audit log</h3>
+  ${[["admin","Duyệt bảng giá v"+DB.mdVersion,"08:42"],["admin","Revoke thiết bị NV005","08:15"],["admin","Publish master data","07:50"],["gsbh_hung","Duyệt điểm bán KH-2214","hôm qua"]].map(l=>`<div class="kv"><span>${ava(l[0])}<b>${l[0]}</b> — ${l[1]}</span><span style="color:var(--hint)">${l[2]}</span></div>`).join("")}
+  </div>`;
+</script>
